@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: transparent;
+    }
+    
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  
+  <script>
+    const { ipcRenderer } = require('electron');
+    
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    // Handle window resize (e.g., display resolution changes)
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+    
+    // Get this window's display bounds from command line arguments
+    let displayBounds = { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight };
+    try {
+      const args = process.argv;
+      const boundsArg = args.find(arg => arg.startsWith('--display-bounds='));
+      if (boundsArg) {
+        displayBounds = JSON.parse(boundsArg.replace('--display-bounds=', ''));
+      }
+    } catch (err) {
+      // Error parsing display bounds - use defaults
+    }
+    
+    // State variables
+    let isActive = false;
+    let clickEffectEnabled = true;
+    let cursorX = 0;
+    let cursorY = 0;
+    let globalCursorX = 0; // Track global position separately
+    let globalCursorY = 0;
+    let ringX = 0;
+    let ringY = 0;
+    let clickEffects = [];
+    let lastMouseDownTime = 0;
+    let mouseDownPos = { x: 0, y: 0 };
+    
+    // Check if a global coordinate is within this display's bounds
+    function isPointInDisplay(globalX, globalY) {
+      return (
+        globalX >= displayBounds.x && 
+        globalX < displayBounds.x + displayBounds.width && 
+        globalY >= displayBounds.y && 
+        globalY < displayBounds.y + displayBounds.height
+      );
+    }
+    
+    // Convert global screen coordinates to local canvas coordinates
+    function globalToLocal(globalX, globalY) {
+      // Calculate local coordinates relative to this display
+      const localX = globalX - displayBounds.x;
+      const localY = globalY - displayBounds.y;
+      
+      // Don't clamp - let coordinates be accurate even if outside bounds
+      // The display check will handle whether we draw or not
+      return {
+        x: localX,
+        y: localY,
+        isValid: isPointInDisplay(globalX, globalY)
+      };
+    }
+    
+    // Visual settings for cursor ring
+    let ringSettings = {
+      color: '#3b82f6',
+      size: 16,
+      thickness: 2,
+      opacity: 1,
+      filled: false,
+      trailEnabled: false,
+      trailLength: 5
+    };
+    
+    // Cache RGB values to avoid repeated hex conversion
+    let ringColorRGB = hexToRgb(ringSettings.color);
+    let leftClickColorRGB = hexToRgb('#a855f7');
+    let rightClickColorRGB = hexToRgb('#10b981');
+    
+    // Trail history for cursor ring
+    let trailHistory = [];
+    
+    // Frame timing for smooth animation across different refresh rates
+    let lastFrameTime = performance.now();
+    let targetFPS = 60; // Target 60fps worth of movement per second
+    
+    // Visual settings for click effects
+    let clickSettings = {
+      leftClick: {
+        color: '#a855f7',
+        size: 16,
+        thickness: 2,
+        opacity: 1,
+        speed: 600
+      },
+      rightClick: {
+        color: '#10b981',
+        size: 16,
+        thickness: 2,
+        opacity: 1,
+        speed: 600
+      },
+      effectStyle: 'ring' // 'ring', 'ripple', or 'burst'
+    };
+    
+    // Initialize cursor position - Update BOTH global and local
+    const initialPos = ipcRenderer.sendSync('get-cursor-position');
+    globalCursorX = initialPos.x;
+    globalCursorY = initialPos.y;
+    const initialLocal = globalToLocal(initialPos.x, initialPos.y);
+    cursorX = initialLocal.x;
+    cursorY = initialLocal.y;
+    ringX = initialLocal.x;
+    ringY = initialLocal.y;
+    
+    let uIOhook = null;
+    let usePolling = false;
+    let pollingInterval = null;
+    let hybridInterval = null;
+    
+    // Try to load uiohook-napi for global mouse tracking
+    try {
+      const uiohook = require('uiohook-napi');
+      uIOhook = uiohook.uIOhook;
+      
+      // Track mouse movements - convert global to local coords
+      uIOhook.on('mousemove', (e) => {
+        globalCursorX = e.x;
+        globalCursorY = e.y;
+        const local = globalToLocal(e.x, e.y);
+        cursorX = local.x;
+        cursorY = local.y;
+      });
+      
+      // Track mouse down events - convert global to local coords
+      uIOhook.on('mousedown', (e) => {
+        if (isActive && clickEffectEnabled) {
+          globalCursorX = e.x;
+          globalCursorY = e.y;
+          
+          // Only create click effect if cursor is on this display
+          if (isPointInDisplay(globalCursorX, globalCursorY)) {
+            const local = globalToLocal(e.x, e.y);
+            lastMouseDownTime = Date.now();
+            mouseDownPos = { x: local.x, y: local.y };
+            // e.button: 1 = left, 2 = right, 3 = middle
+            const clickType = e.button === 2 ? 'right' : 'left';
+            createClickEffect(local.x, local.y, clickType);
+          }
+        }
+      });
+      
+      // Track mouse up events - convert global to local coords
+      uIOhook.on('mouseup', (e) => {
+        if (isActive && clickEffectEnabled) {
+          globalCursorX = e.x;
+          globalCursorY = e.y;
+          
+          // Only create click effect if cursor is on this display
+          if (isPointInDisplay(globalCursorX, globalCursorY)) {
+            const local = globalToLocal(e.x, e.y);
+            const timeSinceDown = Date.now() - lastMouseDownTime;
+            const distance = Math.sqrt(Math.pow(local.x - mouseDownPos.x, 2) + Math.pow(local.y - mouseDownPos.y, 2));
+            
+            // Only create second effect if it was a drag or long press
+            if (timeSinceDown > 150 || distance > 5) {
+              const clickType = e.button === 2 ? 'right' : 'left';
+              createClickEffect(local.x, local.y, clickType);
+            }
+          }
+        }
+      });
+      
+      uIOhook.start();
+      
+    } catch (err) {
+      usePolling = true;
+    }
+    
+    // Fallback: Poll cursor position if uiohook not available
+    // Update BOTH global and local coordinates
+    if (usePolling) {
+      pollingInterval = setInterval(() => {
+        const pos = ipcRenderer.sendSync('get-cursor-position');
+        globalCursorX = pos.x;
+        globalCursorY = pos.y;
+        const local = globalToLocal(pos.x, pos.y);
+        cursorX = local.x;
+        cursorY = local.y;
+      }, 8); // 8ms = ~120fps polling
+      
+    } else {
+      // HYBRID APPROACH: Even with uiohook, poll occasionally to catch missed events
+      // This helps with elevated windows and drag operations
+      // Update BOTH global and local coordinates
+      hybridInterval = setInterval(() => {
+        const pos = ipcRenderer.sendSync('get-cursor-position');
+        const prevGlobalX = globalCursorX;
+        const prevGlobalY = globalCursorY;
+        
+        globalCursorX = pos.x;
+        globalCursorY = pos.y;
+        const local = globalToLocal(pos.x, pos.y);
+        
+        // Only update if position diverged significantly from uiohook position
+        const deltaX = Math.abs(local.x - cursorX);
+        const deltaY = Math.abs(local.y - cursorY);
+        if (deltaX > 5 || deltaY > 5) {
+          cursorX = local.x;
+          cursorY = local.y;
+        }
+      }, 50); // Check every 50ms as safety net
+    }
+    
+    // Main animation loop
+    function animate() {
+      // Calculate delta time for frame-rate independent animation
+      const currentTime = performance.now();
+      const deltaTime = (currentTime - lastFrameTime) / 1000; // Convert to seconds
+      lastFrameTime = currentTime;
+      
+      // Calculate smooth factor once per frame
+      const smoothness = 0.008;
+      const smoothFactor = 1 - Math.exp(-deltaTime / smoothness);
+      
+      // Check if cursor is on this display once per frame
+      const isCursorOnThisDisplay = isActive && isPointInDisplay(globalCursorX, globalCursorY);
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      if (isCursorOnThisDisplay) {
+        // Smooth cursor following
+        const dx = cursorX - ringX;
+        const dy = cursorY - ringY;
+        
+        ringX += dx * smoothFactor;
+        ringY += dy * smoothFactor;
+        
+        // Draw trail if enabled
+        if (ringSettings.trailEnabled) {
+          trailHistory.push({ x: ringX, y: ringY });
+          
+          if (trailHistory.length > ringSettings.trailLength) {
+            trailHistory.shift();
+          }
+          
+          // Draw trail rings
+          const trailLen = trailHistory.length;
+          for (let i = 0; i < trailLen; i++) {
+            const progress = i / trailLen;
+            const trailOpacity = progress * ringSettings.opacity;
+            const pos = trailHistory[i];
+            
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, ringSettings.size, 0, Math.PI * 2);
+            
+            if (ringSettings.filled) {
+              ctx.fillStyle = `rgba(${ringColorRGB.r}, ${ringColorRGB.g}, ${ringColorRGB.b}, ${trailOpacity})`;
+              ctx.fill();
+            } else {
+              ctx.strokeStyle = `rgba(${ringColorRGB.r}, ${ringColorRGB.g}, ${ringColorRGB.b}, ${trailOpacity})`;
+              ctx.lineWidth = ringSettings.thickness;
+              ctx.stroke();
+            }
+          }
+        } else {
+          trailHistory = [];
+        }
+        
+        // Draw main cursor ring
+        ctx.beginPath();
+        ctx.arc(ringX, ringY, ringSettings.size, 0, Math.PI * 2);
+        
+        if (ringSettings.filled) {
+          ctx.fillStyle = `rgba(${ringColorRGB.r}, ${ringColorRGB.g}, ${ringColorRGB.b}, ${ringSettings.opacity})`;
+          ctx.fill();
+        } else {
+          ctx.strokeStyle = `rgba(${ringColorRGB.r}, ${ringColorRGB.g}, ${ringColorRGB.b}, ${ringSettings.opacity})`;
+          ctx.lineWidth = ringSettings.thickness;
+          ctx.stroke();
+        }
+      } else {
+        // Cursor not on this display - clear trail
+        trailHistory = [];
+      }
+      
+      // Animate click effects
+      clickEffects = clickEffects.filter(effect => {
+        const elapsed = Date.now() - effect.startTime;
+        const settings = effect.clickType === 'right' ? clickSettings.rightClick : clickSettings.leftClick;
+        const progress = elapsed / settings.speed;
+        
+        if (progress >= 1) return false; // Remove completed effects
+        
+        // Use cached color based on click type
+        const color = effect.clickType === 'right' ? rightClickColorRGB : leftClickColorRGB;
+        
+        // Draw based on effect style
+        if (clickSettings.effectStyle === 'ring') {
+          // Standard expanding ring
+          const scale = 1 + (progress * 2);
+          const opacity = (1 - progress) * settings.opacity;
+          
+          ctx.beginPath();
+          ctx.arc(effect.x, effect.y, settings.size * scale, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${opacity})`;
+          ctx.lineWidth = settings.thickness;
+          ctx.stroke();
+          
+        } else if (clickSettings.effectStyle === 'ripple') {
+          // Multiple concentric rings
+          for (let i = 0; i < 3; i++) {
+            const delay = i * 0.15;
+            const denominator = 1 - delay;
+            if (denominator > 0) {
+              const rippleProgress = Math.max(0, progress - delay) / denominator;
+              if (rippleProgress > 0 && rippleProgress < 1) {
+                const scale = 1 + (rippleProgress * 2);
+                const opacity = (1 - rippleProgress) * settings.opacity * 0.6;
+                
+                ctx.beginPath();
+                ctx.arc(effect.x, effect.y, settings.size * scale, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${opacity})`;
+                ctx.lineWidth = settings.thickness;
+                ctx.stroke();
+              }
+            }
+          }
+          
+        } else if (clickSettings.effectStyle === 'burst') {
+          // Particle burst effect
+          const particleCount = 8;
+          const maxDistance = settings.size * 2;
+          const opacity = (1 - progress) * settings.opacity;
+          
+          for (let i = 0; i < particleCount; i++) {
+            const angle = (Math.PI * 2 * i) / particleCount;
+            const distance = progress * maxDistance;
+            const x = effect.x + Math.cos(angle) * distance;
+            const y = effect.y + Math.sin(angle) * distance;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, settings.thickness * 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${opacity})`;
+            ctx.fill();
+          }
+        }
+        
+        return true; // Keep this effect
+      });
+      
+      requestAnimationFrame(animate);
+    }
+    
+    animate();
+    
+    // Convert hex color to RGB object
+    function hexToRgb(hex) {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : { r: 168, g: 85, b: 247 }; // Fallback purple
+    }
+    
+    // Create a new click effect animation
+    function createClickEffect(x, y, clickType = 'left') {
+      clickEffects.push({
+        x: x,
+        y: y,
+        startTime: Date.now(),
+        clickType: clickType
+      });
+    }
+    
+    // ========== IPC Event Listeners ==========
+    
+    // Toggle overlay (from shortcut or tray)
+    // Update BOTH global and local coordinates
+    ipcRenderer.on('toggle-overlay', () => {
+      isActive = !isActive;
+      if (isActive) {
+        const pos = ipcRenderer.sendSync('get-cursor-position');
+        globalCursorX = pos.x;
+        globalCursorY = pos.y;
+        const local = globalToLocal(pos.x, pos.y);
+        cursorX = local.x;
+        cursorY = local.y;
+        ringX = local.x;
+        ringY = local.y;
+      }
+      ipcRenderer.send('overlay-status', { isActive, clickEffectEnabled });
+    });
+    
+    // Set overlay state from control panel
+    // Update BOTH global and local coordinates
+    ipcRenderer.on('set-overlay', (event, active) => {
+      isActive = active;
+      if (isActive) {
+        const pos = ipcRenderer.sendSync('get-cursor-position');
+        globalCursorX = pos.x;
+        globalCursorY = pos.y;
+        const local = globalToLocal(pos.x, pos.y);
+        cursorX = local.x;
+        cursorY = local.y;
+        ringX = local.x;
+        ringY = local.y;
+      }
+      ipcRenderer.send('overlay-status', { isActive, clickEffectEnabled });
+    });
+    
+    // Toggle click effects
+    ipcRenderer.on('set-click-effect', (event, enabled) => {
+      clickEffectEnabled = enabled;
+      ipcRenderer.send('overlay-status', { isActive, clickEffectEnabled });
+    });
+    
+    // Update ring appearance
+    ipcRenderer.on('update-ring-settings', (event, settings) => {
+      // Explicitly update each property to ensure changes take effect
+      if (settings.color !== undefined) {
+        ringSettings.color = settings.color;
+        ringColorRGB = hexToRgb(settings.color); // Update cached RGB
+      }
+      if (settings.size !== undefined) ringSettings.size = settings.size;
+      if (settings.thickness !== undefined) ringSettings.thickness = settings.thickness;
+      if (settings.opacity !== undefined) ringSettings.opacity = settings.opacity;
+      if (settings.filled !== undefined) ringSettings.filled = settings.filled;
+      if (settings.trailEnabled !== undefined) ringSettings.trailEnabled = settings.trailEnabled;
+      if (settings.trailLength !== undefined) {
+        ringSettings.trailLength = settings.trailLength;
+        // Clear trail history when length changes to prevent visual artifacts
+        trailHistory = [];
+      }
+    });
+    
+    // Update click effect appearance
+    ipcRenderer.on('update-click-settings', (event, settings) => {
+      // Handle partial updates for nested structure
+      if (settings.leftClick) {
+        clickSettings.leftClick = { ...clickSettings.leftClick, ...settings.leftClick };
+        if (settings.leftClick.color) {
+          leftClickColorRGB = hexToRgb(settings.leftClick.color); // Update cached RGB
+        }
+      }
+      if (settings.rightClick) {
+        clickSettings.rightClick = { ...clickSettings.rightClick, ...settings.rightClick };
+        if (settings.rightClick.color) {
+          rightClickColorRGB = hexToRgb(settings.rightClick.color); // Update cached RGB
+        }
+      }
+      if (settings.effectStyle !== undefined) {
+        clickSettings.effectStyle = settings.effectStyle;
+      }
+      // Handle full replacement (from preset loading)
+      if (settings.leftClick && settings.rightClick && settings.effectStyle) {
+        clickSettings = { ...clickSettings, ...settings };
+      }
+    });
+    
+    // Cleanup on window close
+    window.addEventListener('beforeunload', () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
+      if (hybridInterval) {
+        clearInterval(hybridInterval);
+        hybridInterval = null;
+      }
+      if (uIOhook) {
+        uIOhook.stop();
+        uIOhook = null;
+      }
+    });
+    
+    // Cleanup on process exit (fallback)
+    process.on('exit', () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+      if (hybridInterval) {
+        clearInterval(hybridInterval);
+      }
+      if (uIOhook) {
+        uIOhook.stop();
+      }
+    });
+    
+    // Send initial status to control panel after short delay
+    setTimeout(() => {
+      ipcRenderer.send('overlay-status', { isActive, clickEffectEnabled });
+    }, 500);
+  </script>
+</body>
+</html>

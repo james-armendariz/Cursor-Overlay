@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    /* CSS Variables for warm theme */
+    :root {
+      --bg-primary: #fefbf8;
+      --bg-secondary: #fffefc;
+      --bg-tertiary: #fdf9f5;
+      --text-primary: #5a4a42;
+      --text-secondary: #8b7a72;
+      --text-muted: #b5a69e;
+      --accent-primary: #ff8c42;
+      --accent-secondary: #ff9f59;
+      --accent-success: #ff8c42;
+      --accent-danger: #ff6b6b;
+      --accent-warning: #ffb84d;
+      --border-color: #f0e6dc;
+      --slider-track: #e6d5c7;
+      --shadow: 0 2px 8px rgba(255, 140, 66, 0.15);
+      --shadow-lg: 0 4px 16px rgba(255, 140, 66, 0.25);
+      --gradient-primary: linear-gradient(135deg, #ff8c42 0%, #ff9f59 100%);
+      --gradient-success: linear-gradient(135deg, #ff8c42 0%, #ff9f59 100%);
+      --gradient-danger: linear-gradient(135deg, #ff6b6b 0%, #ff8c42 100%);
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 32px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      margin: 0;
+      overflow-y: auto;
+      height: 100vh;
+      line-height: 1.5;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-color) transparent;
+    }
+    
+    body::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    body::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 3px;
+    }
+    
+    body::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .header h2 {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+    
+    .header p {
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 400;
+    }
+    
+    .quit-link {
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 400;
+      text-decoration: underline;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-block;
+      text-align: center;
+      margin-top: 4px;
+    }
+    
+    .quit-link:hover {
+      color: var(--accent-danger);
+      text-decoration: underline;
+    }
+    
+    h3 {
+      margin: 32px 0 20px 0;
+      font-size: 16px;
+      color: var(--text-primary);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    button {
+      width: 100%;
+      padding: 16px 24px;
+      border: 2px solid var(--accent-primary);
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: 16px;
+      transition: all 0.2s ease;
+      background: transparent;
+    }
+    
+    .start-btn {
+      color: var(--accent-primary);
+      border-color: var(--accent-primary);
+    }
+    
+    .start-btn:hover {
+      background: var(--accent-primary);
+      color: white;
+    }
+    
+    .stop-btn {
+      color: var(--accent-danger);
+      border-color: var(--accent-danger);
+    }
+    
+    .stop-btn:hover {
+      background: var(--accent-danger);
+      color: white;
+    }
+    
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      background: var(--bg-secondary);
+      padding: 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      transition: all 0.2s ease;
+    }
+    
+    .checkbox-container:hover {
+      border-color: var(--accent-primary);
+    }
+    
+    .checkbox-container input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-right: 12px;
+      cursor: pointer;
+      appearance: none;
+      border: 2px solid var(--border-color);
+      border-radius: 3px;
+      background: var(--bg-tertiary);
+      position: relative;
+      transition: all 0.2s ease;
+    }
+    
+    .checkbox-container input[type="checkbox"]:checked {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+    }
+    
+    .checkbox-container input[type="checkbox"]:checked::after {
+      content: '✓';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    
+    .checkbox-container label {
+      font-size: 14px;
+      color: var(--text-primary);
+      cursor: pointer;
+      user-select: none;
+      font-weight: 500;
+    }
+    
+    .setting-group {
+      background: var(--bg-secondary);
+      padding: 24px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border-color);
+      transition: all 0.2s ease;
+    }
+    
+    .setting-group:hover {
+      border-color: var(--accent-primary);
+    }
+    
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    
+    .setting-row:last-child {
+      margin-bottom: 0;
+    }
+    
+    .setting-label {
+      font-size: 14px;
+      color: var(--text-secondary);
+      flex: 1;
+      font-weight: 500;
+    }
+    
+    .setting-control {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    input[type="color"] {
+      width: 50px;
+      height: 32px;
+      border: 2px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      background: var(--bg-tertiary);
+      transition: all 0.2s ease;
+    }
+    
+    input[type="color"]:hover {
+      border-color: var(--accent-primary);
+    }
+    
+    input[type="range"] {
+      width: 100px;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--slider-track);
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+    }
+    
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent-primary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(255, 140, 66, 0.3);
+    }
+    
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 3px 6px rgba(255, 140, 66, 0.4);
+    }
+    
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent-primary);
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 4px rgba(255, 140, 66, 0.3);
+    }
+    
+    select {
+      padding: 12px 16px;
+      border-radius: 6px;
+      border: 2px solid var(--border-color);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    select:hover {
+      border-color: var(--accent-primary);
+    }
+    
+    select:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+    }
+    
+    .value-display {
+      min-width: 45px;
+      text-align: right;
+      font-size: 13px;
+      color: var(--text-primary);
+      font-weight: 500;
+      background: var(--slider-track);
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+    }
+    
+    .info {
+      font-size: 13px;
+      color: var(--text-secondary);
+      background: var(--bg-secondary);
+      padding: 20px;
+      border-radius: 8px;
+      line-height: 1.5;
+      border: 1px solid var(--border-color);
+    }
+    
+    .info strong {
+      color: var(--text-primary);
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+    
+    .status {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 20px;
+      padding: 16px;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      font-weight: 400;
+    }
+    
+    .status.active {
+      color: var(--accent-success);
+      border-color: var(--accent-success);
+      background: rgba(255, 140, 66, 0.08);
+    }
+    
+    .preset-controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      margin-top: 24px;
+    }
+    
+    .preset-controls button {
+      margin-bottom: 0;
+      padding: 12px 20px;
+      font-size: 14px;
+    }
+    
+    .preset-controls .primary {
+      color: var(--accent-primary);
+      border-color: var(--accent-primary);
+    }
+    
+    .preset-controls .primary:hover {
+      background: var(--accent-primary);
+      color: white;
+    }
+    
+    .preset-controls .primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      border-color: var(--border-color);
+      color: var(--text-muted);
+    }
+    
+    .preset-controls .primary:disabled:hover {
+      background: transparent;
+      color: var(--text-muted);
+    }
+    
+    .preset-controls .secondary {
+      color: var(--text-primary);
+      border-color: var(--border-color);
+    }
+    
+    .preset-controls .secondary:hover {
+      border-color: var(--accent-primary);
+    }
+    
+    .preset-controls .danger {
+      color: var(--accent-danger);
+      border-color: var(--accent-danger);
+    }
+    
+    .preset-controls .danger:hover {
+      background: var(--accent-danger);
+      color: white;
+    }
+    
+    input[type="text"] {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 6px;
+      border: 2px solid var(--border-color);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-size: 14px;
+      margin-bottom: 16px;
+      transition: all 0.2s ease;
+    }
+    
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+    }
+    
+    input[type="text"]::placeholder {
+      color: var(--text-muted);
+    }
+    
+    .error-message {
+      display: none;
+      padding: 12px;
+      background: rgba(239, 68, 68, 0.1);
+      color: #fca5a5;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 12px;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+    
+    .confirm-message {
+      display: none;
+      padding: 16px;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 12px;
+      border: 2px solid var(--accent-danger);
+      color: var(--text-primary);
+    }
+    
+    .confirm-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    
+    .confirm-buttons button {
+      margin-bottom: 0;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>Cursor Overlay</h2>
+    <span class="quit-link" id="quitBtn">Quit Application</span>
+  </div>
+  
+  <button id="toggleBtn" class="start-btn">Start Overlay</button>
+  
+  <div class="checkbox-container">
+    <input type="checkbox" id="clickEffect" checked>
+    <label for="clickEffect">Enable Click Effect</label>
+  </div>
+  
+  <div class="checkbox-container">
+    <input type="checkbox" id="launchOnStartup">
+    <label for="launchOnStartup">Launch on Windows Startup</label>
+  </div>
+  
+  <h3>Presets</h3>
+  <div class="setting-group">
+    <select id="presetSelect">
+      <option value="">Select a preset...</option>
+    </select>
+    <div class="preset-controls">
+      <button id="loadPresetBtn" class="primary" disabled>Load Preset</button>
+    </div>
+    <div id="presetError" class="error-message">Please enter a preset name</div>
+    <div id="deleteConfirm" class="confirm-message">
+      <div style="margin-bottom: 8px;">Delete "<span id="deletePresetName"></span>"?</div>
+      <div class="confirm-buttons">
+        <button id="confirmDeleteBtn" class="danger">Yes, Delete</button>
+        <button id="cancelDeleteBtn" class="secondary">Cancel</button>
+      </div>
+    </div>
+    <input type="text" id="presetName" placeholder="New preset name..." autocomplete="off" spellcheck="false">
+    <div class="preset-controls">
+      <button id="savePresetBtn" class="primary">Save</button>
+      <button id="deletePresetBtn" class="danger">Delete</button>
+    </div>
+  </div>
+  
+  <h3>Ring Settings</h3>
+  <div class="setting-group">
+    <div class="setting-row">
+      <span class="setting-label">Color</span>
+      <div class="setting-control">
+        <input type="color" id="ringColor" value="#3b82f6">
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Style</span>
+      <div class="setting-control">
+        <select id="ringStyle">
+          <option value="ring">Ring</option>
+          <option value="filled">Filled Circle</option>
+        </select>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Size</span>
+      <div class="setting-control">
+        <input type="range" id="ringSize" min="8" max="50" value="16">
+        <span class="value-display" id="ringSizeValue">16px</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Thickness</span>
+      <div class="setting-control">
+        <input type="range" id="ringThickness" min="1" max="8" value="2">
+        <span class="value-display" id="ringThicknessValue">2px</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Opacity</span>
+      <div class="setting-control">
+        <input type="range" id="ringOpacity" min="0" max="100" value="100">
+        <span class="value-display" id="ringOpacityValue">100%</span>
+      </div>
+    </div>
+  </div>
+  
+  <h3>Ring Trail Effect</h3>
+  <div class="setting-group">
+    <div class="checkbox-container" style="margin-bottom: 0;">
+      <input type="checkbox" id="trailEnabled">
+      <label for="trailEnabled">Enable Trail Effect</label>
+    </div>
+    <div class="setting-row" style="margin-top: 20px;">
+      <span class="setting-label">Trail Length</span>
+      <div class="setting-control">
+        <input type="range" id="trailLength" min="3" max="15" value="5">
+        <span class="value-display" id="trailLengthValue">5</span>
+      </div>
+    </div>
+  </div>
+  
+  <h3>Click Effect Settings</h3>
+  <div class="setting-group">
+    <div class="setting-row">
+      <span class="setting-label">Effect Style</span>
+      <div class="setting-control">
+        <select id="effectStyle">
+          <option value="ring">Ring</option>
+          <option value="ripple">Ripple</option>
+          <option value="burst">Burst</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  
+  <h3>Left Click Settings</h3>
+  <div class="setting-group">
+    <div class="setting-row">
+      <span class="setting-label">Color</span>
+      <div class="setting-control">
+        <input type="color" id="leftClickColor" value="#a855f7">
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Size</span>
+      <div class="setting-control">
+        <input type="range" id="leftClickSize" min="8" max="50" value="16">
+        <span class="value-display" id="leftClickSizeValue">16px</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Thickness</span>
+      <div class="setting-control">
+        <input type="range" id="leftClickThickness" min="1" max="8" value="2">
+        <span class="value-display" id="leftClickThicknessValue">2px</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Opacity</span>
+      <div class="setting-control">
+        <input type="range" id="leftClickOpacity" min="0" max="100" value="100">
+        <span class="value-display" id="leftClickOpacityValue">100%</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Animation Speed</span>
+      <div class="setting-control">
+        <input type="range" id="leftClickSpeed" min="200" max="1500" value="600" step="50">
+        <span class="value-display" id="leftClickSpeedValue">600ms</span>
+      </div>
+    </div>
+  </div>
+  
+  <h3>Right Click Settings</h3>
+  <div class="setting-group">
+    <div class="setting-row">
+      <span class="setting-label">Color</span>
+      <div class="setting-control">
+        <input type="color" id="rightClickColor" value="#10b981">
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Size</span>
+      <div class="setting-control">
+        <input type="range" id="rightClickSize" min="8" max="50" value="16">
+        <span class="value-display" id="rightClickSizeValue">16px</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Thickness</span>
+      <div class="setting-control">
+        <input type="range" id="rightClickThickness" min="1" max="8" value="2">
+        <span class="value-display" id="rightClickThicknessValue">2px</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Opacity</span>
+      <div class="setting-control">
+        <input type="range" id="rightClickOpacity" min="0" max="100" value="100">
+        <span class="value-display" id="rightClickOpacityValue">100%</span>
+      </div>
+    </div>
+    <div class="setting-row">
+      <span class="setting-label">Animation Speed</span>
+      <div class="setting-control">
+        <input type="range" id="rightClickSpeed" min="200" max="1500" value="600" step="50">
+        <span class="value-display" id="rightClickSpeedValue">600ms</span>
+      </div>
+    </div>
+  </div>
+  
+  <div class="info">
+    <strong>Global Shortcut</strong>
+    Press Alt+Shift+O to toggle overlay
+  </div>
+  
+  <div class="info" style="margin-top: 16px; border-color: var(--accent-warning); background: rgba(255, 184, 77, 0.1);">
+    <strong>⚠️ How to Close the App</strong>
+    Right-click the tray icon (bottom-right of taskbar) and select "Quit". Closing this window will only hide it.
+  </div>
+  
+  <div class="status" id="status">
+    Status: Overlay inactive
+  </div>
+  
+  <script>
+    const { ipcRenderer } = require('electron');
+    
+    // State variables
+    let isActive = false;
+    let clickEffectEnabled = true;
+    
+    // Element references
+    const toggleBtn = document.getElementById('toggleBtn');
+    const quitBtn = document.getElementById('quitBtn');
+    const clickEffectCheckbox = document.getElementById('clickEffect');
+    const launchOnStartupCheckbox = document.getElementById('launchOnStartup');
+    const statusDiv = document.getElementById('status');
+    
+    // Ring setting elements
+    const ringColor = document.getElementById('ringColor');
+    const ringStyle = document.getElementById('ringStyle');
+    const ringSize = document.getElementById('ringSize');
+    const ringThickness = document.getElementById('ringThickness');
+    const ringOpacity = document.getElementById('ringOpacity');
+    const ringSizeValue = document.getElementById('ringSizeValue');
+    const ringThicknessValue = document.getElementById('ringThicknessValue');
+    const ringOpacityValue = document.getElementById('ringOpacityValue');
+    const trailEnabled = document.getElementById('trailEnabled');
+    const trailLength = document.getElementById('trailLength');
+    const trailLengthValue = document.getElementById('trailLengthValue');
+    
+    // Click effect setting elements
+    const effectStyle = document.getElementById('effectStyle');
+    
+    const leftClickColor = document.getElementById('leftClickColor');
+    const leftClickSize = document.getElementById('leftClickSize');
+    const leftClickThickness = document.getElementById('leftClickThickness');
+    const leftClickOpacity = document.getElementById('leftClickOpacity');
+    const leftClickSpeed = document.getElementById('leftClickSpeed');
+    const leftClickSizeValue = document.getElementById('leftClickSizeValue');
+    const leftClickThicknessValue = document.getElementById('leftClickThicknessValue');
+    const leftClickOpacityValue = document.getElementById('leftClickOpacityValue');
+    const leftClickSpeedValue = document.getElementById('leftClickSpeedValue');
+    
+    const rightClickColor = document.getElementById('rightClickColor');
+    const rightClickSize = document.getElementById('rightClickSize');
+    const rightClickThickness = document.getElementById('rightClickThickness');
+    const rightClickOpacity = document.getElementById('rightClickOpacity');
+    const rightClickSpeed = document.getElementById('rightClickSpeed');
+    const rightClickSizeValue = document.getElementById('rightClickSizeValue');
+    const rightClickThicknessValue = document.getElementById('rightClickThicknessValue');
+    const rightClickOpacityValue = document.getElementById('rightClickOpacityValue');
+    const rightClickSpeedValue = document.getElementById('rightClickSpeedValue');
+    
+    // Preset elements
+    const presetSelect = document.getElementById('presetSelect');
+    const loadPresetBtn = document.getElementById('loadPresetBtn');
+    const savePresetBtn = document.getElementById('savePresetBtn');
+    const deletePresetBtn = document.getElementById('deletePresetBtn');
+    const presetNameInput = document.getElementById('presetName');
+    const presetError = document.getElementById('presetError');
+    const deleteConfirm = document.getElementById('deleteConfirm');
+    const deletePresetNameSpan = document.getElementById('deletePresetName');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+    
+    // Update UI based on overlay status
+    function updateUI(active, clickEnabled) {
+      isActive = active;
+      
+      if (isActive) {
+        toggleBtn.textContent = 'Stop Overlay';
+        toggleBtn.className = 'stop-btn';
+        statusDiv.textContent = 'Status: Overlay active' + (clickEnabled ? ' (with click effects)' : '');
+        statusDiv.className = 'status active';
+      } else {
+        toggleBtn.textContent = 'Start Overlay';
+        toggleBtn.className = 'start-btn';
+        statusDiv.textContent = 'Status: Overlay inactive';
+        statusDiv.className = 'status';
+      }
+      
+      clickEffectCheckbox.checked = clickEnabled;
+    }
+    
+    // Save current settings (preserving presets in main process)
+    function saveCurrentSettings() {
+      const settings = {
+        clickEffectEnabled: clickEffectCheckbox.checked,
+        ringSettings: {
+          color: ringColor.value,
+          size: parseInt(ringSize.value),
+          thickness: parseInt(ringThickness.value),
+          opacity: parseInt(ringOpacity.value) / 100,
+          filled: ringStyle.value === 'filled',
+          trailEnabled: trailEnabled.checked,
+          trailLength: parseInt(trailLength.value)
+        },
+        clickSettings: {
+          leftClick: {
+            color: leftClickColor.value,
+            size: parseInt(leftClickSize.value),
+            thickness: parseInt(leftClickThickness.value),
+            opacity: parseInt(leftClickOpacity.value) / 100,
+            speed: parseInt(leftClickSpeed.value)
+          },
+          rightClick: {
+            color: rightClickColor.value,
+            size: parseInt(rightClickSize.value),
+            thickness: parseInt(rightClickThickness.value),
+            opacity: parseInt(rightClickOpacity.value) / 100,
+            speed: parseInt(rightClickSpeed.value)
+          },
+          effectStyle: effectStyle.value
+        }
+      };
+      
+      ipcRenderer.send('save-settings', settings);
+    }
+    
+    // Load all presets into dropdown
+    function loadPresets() {
+      const presets = ipcRenderer.sendSync('get-presets');
+      presetSelect.innerHTML = '<option value="">Select a preset...</option>';
+      Object.keys(presets).forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        presetSelect.appendChild(option);
+      });
+    }
+    
+    // Apply a preset's settings
+    function applyPreset(presetName) {
+      const presets = ipcRenderer.sendSync('get-presets');
+      const preset = presets[presetName];
+      
+      if (!preset) {
+        return;
+      }
+      
+      // Update ring settings UI
+      ringColor.value = preset.ringSettings.color;
+      ringStyle.value = preset.ringSettings.filled ? 'filled' : 'ring';
+      ringSize.value = preset.ringSettings.size;
+      ringThickness.value = preset.ringSettings.thickness;
+      ringOpacity.value = preset.ringSettings.opacity * 100;
+      trailEnabled.checked = preset.ringSettings.trailEnabled || false;
+      trailLength.value = preset.ringSettings.trailLength || 5;
+      
+      ringSizeValue.textContent = preset.ringSettings.size + 'px';
+      ringThicknessValue.textContent = preset.ringSettings.thickness + 'px';
+      ringOpacityValue.textContent = (preset.ringSettings.opacity * 100) + '%';
+      trailLengthValue.textContent = preset.ringSettings.trailLength || 5;
+      
+      // Update click settings UI
+      effectStyle.value = preset.clickSettings.effectStyle || 'ring';
+      
+      leftClickColor.value = preset.clickSettings.leftClick.color;
+      leftClickSize.value = preset.clickSettings.leftClick.size;
+      leftClickThickness.value = preset.clickSettings.leftClick.thickness;
+      leftClickOpacity.value = preset.clickSettings.leftClick.opacity * 100;
+      leftClickSpeed.value = preset.clickSettings.leftClick.speed;
+      
+      leftClickSizeValue.textContent = preset.clickSettings.leftClick.size + 'px';
+      leftClickThicknessValue.textContent = preset.clickSettings.leftClick.thickness + 'px';
+      leftClickOpacityValue.textContent = (preset.clickSettings.leftClick.opacity * 100) + '%';
+      leftClickSpeedValue.textContent = preset.clickSettings.leftClick.speed + 'ms';
+      
+      rightClickColor.value = preset.clickSettings.rightClick.color;
+      rightClickSize.value = preset.clickSettings.rightClick.size;
+      rightClickThickness.value = preset.clickSettings.rightClick.thickness;
+      rightClickOpacity.value = preset.clickSettings.rightClick.opacity * 100;
+      rightClickSpeed.value = preset.clickSettings.rightClick.speed;
+      
+      rightClickSizeValue.textContent = preset.clickSettings.rightClick.size + 'px';
+      rightClickThicknessValue.textContent = preset.clickSettings.rightClick.thickness + 'px';
+      rightClickOpacityValue.textContent = (preset.clickSettings.rightClick.opacity * 100) + '%';
+      rightClickSpeedValue.textContent = preset.clickSettings.rightClick.speed + 'ms';
+      
+      // IMPORTANT: Send the COMPLETE settings to overlay, not just partial updates
+      ipcRenderer.send('update-ring-settings', {
+        color: preset.ringSettings.color,
+        size: preset.ringSettings.size,
+        thickness: preset.ringSettings.thickness,
+        opacity: preset.ringSettings.opacity,
+        filled: preset.ringSettings.filled,
+        trailEnabled: preset.ringSettings.trailEnabled || false,
+        trailLength: preset.ringSettings.trailLength || 5
+      });
+      
+      ipcRenderer.send('update-click-settings', {
+        leftClick: preset.clickSettings.leftClick,
+        rightClick: preset.clickSettings.rightClick,
+        effectStyle: preset.clickSettings.effectStyle || 'ring'
+      });
+      
+      saveCurrentSettings();
+    }
+    
+    // ========== Initialization ==========
+    
+    // Request settings from main process
+    ipcRenderer.send('request-settings');
+    
+    // Get launch on startup status
+    const launchOnStartup = ipcRenderer.sendSync('get-launch-on-startup');
+    launchOnStartupCheckbox.checked = launchOnStartup;
+    
+    // Load presets into dropdown
+    loadPresets();
+    
+    // Enable/disable load button based on preset selection
+    presetSelect.addEventListener('change', function() {
+      if (presetSelect.value) {
+        loadPresetBtn.disabled = false;
+      } else {
+        loadPresetBtn.disabled = true;
+      }
+    });
+    
+    // ========== IPC Event Listeners ==========
+    
+    // Receive settings from main process
+    ipcRenderer.on('load-settings', function(event, settings) {
+      // Apply ring settings
+      ringColor.value = settings.ringSettings.color;
+      ringStyle.value = settings.ringSettings.filled ? 'filled' : 'ring';
+      ringSize.value = settings.ringSettings.size;
+      ringThickness.value = settings.ringSettings.thickness;
+      ringOpacity.value = settings.ringSettings.opacity * 100;
+      trailEnabled.checked = settings.ringSettings.trailEnabled || false;
+      trailLength.value = settings.ringSettings.trailLength || 5;
+      
+      ringSizeValue.textContent = settings.ringSettings.size + 'px';
+      ringThicknessValue.textContent = settings.ringSettings.thickness + 'px';
+      ringOpacityValue.textContent = (settings.ringSettings.opacity * 100) + '%';
+      trailLengthValue.textContent = settings.ringSettings.trailLength || 5;
+      
+      // Apply click settings
+      effectStyle.value = settings.clickSettings.effectStyle || 'ring';
+      
+      leftClickColor.value = settings.clickSettings.leftClick.color;
+      leftClickSize.value = settings.clickSettings.leftClick.size;
+      leftClickThickness.value = settings.clickSettings.leftClick.thickness;
+      leftClickOpacity.value = settings.clickSettings.leftClick.opacity * 100;
+      leftClickSpeed.value = settings.clickSettings.leftClick.speed;
+      
+      leftClickSizeValue.textContent = settings.clickSettings.leftClick.size + 'px';
+      leftClickThicknessValue.textContent = settings.clickSettings.leftClick.thickness + 'px';
+      leftClickOpacityValue.textContent = (settings.clickSettings.leftClick.opacity * 100) + '%';
+      leftClickSpeedValue.textContent = settings.clickSettings.leftClick.speed + 'ms';
+      
+      rightClickColor.value = settings.clickSettings.rightClick.color;
+      rightClickSize.value = settings.clickSettings.rightClick.size;
+      rightClickThickness.value = settings.clickSettings.rightClick.thickness;
+      rightClickOpacity.value = settings.clickSettings.rightClick.opacity * 100;
+      rightClickSpeed.value = settings.clickSettings.rightClick.speed;
+      
+      rightClickSizeValue.textContent = settings.clickSettings.rightClick.size + 'px';
+      rightClickThicknessValue.textContent = settings.clickSettings.rightClick.thickness + 'px';
+      rightClickOpacityValue.textContent = (settings.clickSettings.rightClick.opacity * 100) + '%';
+      rightClickSpeedValue.textContent = settings.clickSettings.rightClick.speed + 'ms';
+      
+      clickEffectCheckbox.checked = settings.clickEffectEnabled;
+      
+      // Send to overlay
+      ipcRenderer.send('update-ring-settings', settings.ringSettings);
+      ipcRenderer.send('update-click-settings', settings.clickSettings);
+      ipcRenderer.send('toggle-click-effect', settings.clickEffectEnabled);
+    });
+    
+    // Receive overlay status updates
+    ipcRenderer.on('overlay-status', function(event, status) {
+      updateUI(status.isActive, status.clickEffectEnabled);
+    });
+    
+    // Preset saved confirmation
+    ipcRenderer.on('preset-saved', function(event, presetNames) {
+      loadPresets();
+    });
+    
+    // Preset deleted confirmation
+    ipcRenderer.on('preset-deleted', function(event, presetNames) {
+      loadPresets();
+    });
+    
+    // ========== Event Handlers ==========
+    
+    // Toggle overlay button
+    toggleBtn.addEventListener('click', function() {
+      isActive = !isActive;
+      ipcRenderer.send('toggle-overlay', isActive);
+      updateUI(isActive, clickEffectCheckbox.checked);
+    });
+    
+    // Quit button
+    quitBtn.addEventListener('click', function() {
+      if (confirm('Are you sure you want to quit Cursor Overlay?')) {
+        ipcRenderer.send('quit-app');
+      }
+    });
+    
+    // Click effect checkbox
+    clickEffectCheckbox.addEventListener('change', function(e) {
+      ipcRenderer.send('toggle-click-effect', e.target.checked);
+      saveCurrentSettings();
+    });
+    
+    // Launch on startup checkbox
+    launchOnStartupCheckbox.addEventListener('change', function(e) {
+      ipcRenderer.send('set-launch-on-startup', e.target.checked);
+    });
+    
+    // Load preset button
+    loadPresetBtn.addEventListener('click', function() {
+      const presetName = presetSelect.value;
+      
+      if (!presetName) {
+        return; // Button should be disabled, but just in case
+      }
+      
+      applyPreset(presetName);
+    });
+    
+    // Save preset button
+    savePresetBtn.addEventListener('click', function() {
+      const name = presetNameInput.value.trim();
+      
+      if (!name) {
+        presetError.style.display = 'block';
+        presetNameInput.style.borderColor = '#ef4444';
+        presetNameInput.focus();
+        return;
+      }
+      
+      // Hide error
+      presetError.style.display = 'none';
+      presetNameInput.style.borderColor = '';
+      
+      const presetData = {
+        ringSettings: {
+          color: ringColor.value,
+          size: parseInt(ringSize.value),
+          thickness: parseInt(ringThickness.value),
+          opacity: parseInt(ringOpacity.value) / 100,
+          filled: ringStyle.value === 'filled',
+          trailEnabled: trailEnabled.checked,
+          trailLength: parseInt(trailLength.value)
+        },
+        clickSettings: {
+          leftClick: {
+            color: leftClickColor.value,
+            size: parseInt(leftClickSize.value),
+            thickness: parseInt(leftClickThickness.value),
+            opacity: parseInt(leftClickOpacity.value) / 100,
+            speed: parseInt(leftClickSpeed.value)
+          },
+          rightClick: {
+            color: rightClickColor.value,
+            size: parseInt(rightClickSize.value),
+            thickness: parseInt(rightClickThickness.value),
+            opacity: parseInt(rightClickOpacity.value) / 100,
+            speed: parseInt(rightClickSpeed.value)
+          },
+          effectStyle: effectStyle.value
+        }
+      };
+      
+      ipcRenderer.send('save-preset', name, presetData);
+      presetNameInput.value = '';
+    });
+    
+    // Delete preset button
+    deletePresetBtn.addEventListener('click', function() {
+      const name = presetSelect.value;
+      if (!name) {
+        presetError.textContent = 'Please select a preset to delete';
+        presetError.style.display = 'block';
+        return;
+      }
+      
+      // Show confirmation
+      deletePresetNameSpan.textContent = name;
+      deleteConfirm.style.display = 'block';
+      presetError.style.display = 'none';
+    });
+    
+    // Confirm delete button
+    confirmDeleteBtn.addEventListener('click', function() {
+      const name = presetSelect.value;
+      ipcRenderer.send('delete-preset', name);
+      deleteConfirm.style.display = 'none';
+    });
+    
+    // Cancel delete button
+    cancelDeleteBtn.addEventListener('click', function() {
+      deleteConfirm.style.display = 'none';
+    });
+    
+    // Hide error when typing in preset name
+    presetNameInput.addEventListener('input', function() {
+      if (presetNameInput.value.trim()) {
+        presetError.style.display = 'none';
+        presetNameInput.style.borderColor = '';
+      }
+    });
+    
+    // Ring setting change handlers
+    ringColor.addEventListener('input', function(e) {
+      ipcRenderer.send('update-ring-settings', { color: e.target.value });
+      saveCurrentSettings();
+    });
+    
+    ringStyle.addEventListener('change', function(e) {
+      ipcRenderer.send('update-ring-settings', { filled: e.target.value === 'filled' });
+      saveCurrentSettings();
+    });
+    
+    ringSize.addEventListener('input', function(e) {
+      const size = parseInt(e.target.value);
+      ringSizeValue.textContent = size + 'px';
+      ipcRenderer.send('update-ring-settings', { size: size });
+      saveCurrentSettings();
+    });
+    
+    ringThickness.addEventListener('input', function(e) {
+      const thickness = parseInt(e.target.value);
+      ringThicknessValue.textContent = thickness + 'px';
+      ipcRenderer.send('update-ring-settings', { thickness: thickness });
+      saveCurrentSettings();
+    });
+    
+    ringOpacity.addEventListener('input', function(e) {
+      const opacity = parseInt(e.target.value);
+      ringOpacityValue.textContent = opacity + '%';
+      ipcRenderer.send('update-ring-settings', { opacity: opacity / 100 });
+      saveCurrentSettings();
+    });
+    
+    trailEnabled.addEventListener('change', function(e) {
+      ipcRenderer.send('update-ring-settings', { trailEnabled: e.target.checked });
+      saveCurrentSettings();
+    });
+    
+    trailLength.addEventListener('input', function(e) {
+      const length = parseInt(e.target.value);
+      trailLengthValue.textContent = length;
+      ipcRenderer.send('update-ring-settings', { trailLength: length });
+      saveCurrentSettings();
+    });
+    
+    // Click effect setting change handlers
+    effectStyle.addEventListener('change', function(e) {
+      ipcRenderer.send('update-click-settings', { effectStyle: e.target.value });
+      saveCurrentSettings();
+    });
+    
+    // Left click handlers
+    leftClickColor.addEventListener('input', function(e) {
+      ipcRenderer.send('update-click-settings', { 
+        leftClick: { color: e.target.value }
+      });
+      saveCurrentSettings();
+    });
+    
+    leftClickSize.addEventListener('input', function(e) {
+      const size = parseInt(e.target.value);
+      leftClickSizeValue.textContent = size + 'px';
+      ipcRenderer.send('update-click-settings', { 
+        leftClick: { size: size }
+      });
+      saveCurrentSettings();
+    });
+    
+    leftClickThickness.addEventListener('input', function(e) {
+      const thickness = parseInt(e.target.value);
+      leftClickThicknessValue.textContent = thickness + 'px';
+      ipcRenderer.send('update-click-settings', { 
+        leftClick: { thickness: thickness }
+      });
+      saveCurrentSettings();
+    });
+    
+    leftClickOpacity.addEventListener('input', function(e) {
+      const opacity = parseInt(e.target.value);
+      leftClickOpacityValue.textContent = opacity + '%';
+      ipcRenderer.send('update-click-settings', { 
+        leftClick: { opacity: opacity / 100 }
+      });
+      saveCurrentSettings();
+    });
+    
+    leftClickSpeed.addEventListener('input', function(e) {
+      const speed = parseInt(e.target.value);
+      leftClickSpeedValue.textContent = speed + 'ms';
+      ipcRenderer.send('update-click-settings', { 
+        leftClick: { speed: speed }
+      });
+      saveCurrentSettings();
+    });
+    
+    // Right click handlers
+    rightClickColor.addEventListener('input', function(e) {
+      ipcRenderer.send('update-click-settings', { 
+        rightClick: { color: e.target.value }
+      });
+      saveCurrentSettings();
+    });
+    
+    rightClickSize.addEventListener('input', function(e) {
+      const size = parseInt(e.target.value);
+      rightClickSizeValue.textContent = size + 'px';
+      ipcRenderer.send('update-click-settings', { 
+        rightClick: { size: size }
+      });
+      saveCurrentSettings();
+    });
+    
+    rightClickThickness.addEventListener('input', function(e) {
+      const thickness = parseInt(e.target.value);
+      rightClickThicknessValue.textContent = thickness + 'px';
+      ipcRenderer.send('update-click-settings', { 
+        rightClick: { thickness: thickness }
+      });
+      saveCurrentSettings();
+    });
+    
+    rightClickOpacity.addEventListener('input', function(e) {
+      const opacity = parseInt(e.target.value);
+      rightClickOpacityValue.textContent = opacity + '%';
+      ipcRenderer.send('update-click-settings', { 
+        rightClick: { opacity: opacity / 100 }
+      });
+      saveCurrentSettings();
+    });
+    
+    rightClickSpeed.addEventListener('input', function(e) {
+      const speed = parseInt(e.target.value);
+      rightClickSpeedValue.textContent = speed + 'ms';
+      ipcRenderer.send('update-click-settings', { 
+        rightClick: { speed: speed }
+      });
+      saveCurrentSettings();
+    });
+  </script>
+</body>
+</html>

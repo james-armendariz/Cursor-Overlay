@@ -1,0 +1,69 @@
+{
+  "name": "cursor-overlay",
+  "version": "1.0.0",
+  "description": "Global cursor overlay with smooth animations",
+  "main": "main.js",
+  "author": "James Armendariz",
+  "license": "MIT",
+  "homepage": "./",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --x64",
+    "build:store": "electron-builder --win --x64 --config.win.target=appx",
+    "build:msix": "electron-builder --win --x64 --config.win.target=msix"
+  },
+  "dependencies": {
+    "uiohook-napi": "^1.5.4"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.cursoroverlay.app",
+    "productName": "Cursor Overlay",
+    "copyright": "Copyright © 2024",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/uiohook-napi/**/*"
+    ],
+    "win": {
+      "icon": "icon.ico",
+      "target": [
+        {
+          "target": "msix",
+          "arch": ["x64"]
+        }
+      ],
+      "signingHashAlgorithms": ["sha256"],
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "msix": {
+      "identityName": "James Armendariz.CursorOverlay",
+      "publisher": "CN=James Armendariz",
+      "publisherDisplayName": "James Armendariz",
+      "applicationId": "CursorOverlay",
+      "displayName": "Cursor Overlay",
+      "description": "Global cursor overlay with smooth animations",
+      "backgroundColor": "#ffffff",
+      "startMenu": {
+        "Name": "Cursor Overlay",
+        "Icon": "icon.ico"
+      },
+      "capabilities": [
+        "internetClient",
+        "privateNetworkClientServer"
+      ],
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico",
+      "installerHeaderIcon": "icon.ico"
+    }
+  }
+}

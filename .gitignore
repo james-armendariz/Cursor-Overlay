@@ -1,0 +1,65 @@
+# Build outputs
+dist/
+build/
+out/
+*.exe
+*.msix
+*.appx
+*.appxbundle
+*.blockmap
+
+# Electron build artifacts
+win-unpacked/
+mac/
+linux-unpacked/
+*.dmg
+*.pkg
+*.deb
+*.rpm
+*.AppImage
+*.snap
+
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Electron resources produced by packaged builds (safe to ignore)
+resources/
+*.pak
+*.dll
+*.dat
+*.bin
+locales/
+LICENSE.electron.txt
+LICENSES.chromium.html
+
+# Uninstaller
+Uninstall*.exe
+uninstallerIcon.ico
+
+# Builder configs
+builder-debug.yml
+builder-effective-config.yaml
+
+# Package lock (optional - some prefer to commit this)
+# package-lock.json
+
