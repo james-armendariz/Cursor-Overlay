@@ -48,8 +48,8 @@ All Electron runtime binaries, installer `.exe`s, `dist/`, `resources/`, `locale
 If you ever want to rebuild installers locally (not required for open-source use):
 
 ```bash
-npm run build       # Standard Windows installer via electron-builder
-npm run build:msix  # MSIX package
+npm run build # Standard Windows installer via electron-builder
+npm run build:msix # MSIX package
 ```
 
 The generated artifacts will be ignored by Git thanks to `.gitignore`.
