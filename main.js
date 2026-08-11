@@ -7,29 +7,24 @@ let overlayWindows = []; // Changed: Array to hold multiple overlay windows
 let controlWindow = null;
 let tray = null;
 
+// Last known overlay runtime state, so newly (re)created overlay windows can be
+// restored instead of reverting to defaults/off after a display change.
+let overlayState = { isActive: false, clickEffectEnabled: true };
+
+// Global input tracking. A single system-wide mouse hook lives in the main
+// process and is broadcast to every overlay window, rather than each window
+// installing its own hook.
+let uIOhook = null;
+let latestCursor = null;          // most recent cursor position, in DIP coordinates
+let cursorPollInterval = null;    // fallback poller when the native hook is unavailable
+let cursorBroadcastInterval = null;
+
 // Settings storage
 const userDataPath = app.getPath('userData');
 const settingsPath = path.join(userDataPath, 'settings.json');
 
-// Load settings from file or return defaults
-function loadSettings() {
-  try {
-    if (fs.existsSync(settingsPath)) {
-      const data = fs.readFileSync(settingsPath, 'utf8');
-      const settings = JSON.parse(data);
-      
-      // Ensure presets property exists
-      if (!settings.presets) {
-        settings.presets = {};
-      }
-      
-      return settings;
-    }
-  } catch (err) {
-    // Error loading settings - use defaults
-  }
-  
-  // Default settings
+// Default settings
+function getDefaultSettings() {
   return {
     clickEffectEnabled: true,
     ringSettings: {
@@ -62,12 +57,120 @@ function loadSettings() {
   };
 }
 
+// Load settings from file, deep-merged onto defaults so every expected key is
+// always present - even if the file is partial, from an older version, or was
+// hand-edited. This prevents crashes in the settings merge on save.
+function loadSettings() {
+  const defaults = getDefaultSettings();
+
+  try {
+    if (fs.existsSync(settingsPath)) {
+      const data = fs.readFileSync(settingsPath, 'utf8');
+      const loaded = JSON.parse(data) || {};
+      const loadedRing = loaded.ringSettings || {};
+      const loadedClick = loaded.clickSettings || {};
+
+      return {
+        ...defaults,
+        ...loaded,
+        ringSettings: { ...defaults.ringSettings, ...loadedRing },
+        clickSettings: {
+          ...defaults.clickSettings,
+          ...loadedClick,
+          leftClick: { ...defaults.clickSettings.leftClick, ...(loadedClick.leftClick || {}) },
+          rightClick: { ...defaults.clickSettings.rightClick, ...(loadedClick.rightClick || {}) }
+        },
+        presets: loaded.presets || {}
+      };
+    }
+  } catch (err) {
+    // Error loading settings - use defaults
+  }
+
+  return defaults;
+}
+
 // Save settings to file
 function saveSettings(settings) {
   try {
     fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
   } catch (err) {
     // Error saving settings - silently fail
+  }
+}
+
+// Send a message to every overlay window that is still alive
+function broadcastToOverlays(channel, payload) {
+  overlayWindows.forEach(win => {
+    if (win && !win.isDestroyed() && win.webContents && !win.webContents.isDestroyed()) {
+      win.webContents.send(channel, payload);
+    }
+  });
+}
+
+// Start the single global mouse hook. Coordinates reported by the native hook
+// are in physical pixels; we convert them to DIP (device-independent pixels) so
+// they line up with Electron's display bounds on machines that use per-monitor
+// DPI scaling. Without this, the ring drifts from the cursor and can land on the
+// wrong monitor whenever any display is scaled to something other than 100%.
+function startInputTracking() {
+  try {
+    const uiohook = require('uiohook-napi');
+    uIOhook = uiohook.uIOhook;
+
+    uIOhook.on('mousemove', (e) => {
+      latestCursor = screen.screenToDipPoint({ x: e.x, y: e.y });
+    });
+
+    uIOhook.on('mousedown', (e) => {
+      const p = screen.screenToDipPoint({ x: e.x, y: e.y });
+      latestCursor = p;
+      broadcastToOverlays('global-mousedown', { x: p.x, y: p.y, button: e.button });
+    });
+
+    uIOhook.on('mouseup', (e) => {
+      const p = screen.screenToDipPoint({ x: e.x, y: e.y });
+      latestCursor = p;
+      broadcastToOverlays('global-mouseup', { x: p.x, y: p.y, button: e.button });
+    });
+
+    uIOhook.start();
+  } catch (err) {
+    // Native hook unavailable - fall back to polling the cursor position.
+    // getCursorScreenPoint already returns DIP coordinates. Click effects are
+    // not available in this mode (no button events without the hook).
+    uIOhook = null;
+    cursorPollInterval = setInterval(() => {
+      latestCursor = screen.getCursorScreenPoint();
+    }, 8);
+  }
+
+  // Broadcast the latest cursor position at ~125Hz. Decoupling the broadcast
+  // rate from the raw event rate keeps IPC traffic bounded on high-polling mice.
+  cursorBroadcastInterval = setInterval(() => {
+    if (latestCursor) {
+      broadcastToOverlays('global-mousemove', { x: latestCursor.x, y: latestCursor.y });
+    }
+  }, 8);
+}
+
+// Stop the hook and timers (on quit)
+function stopInputTracking() {
+  if (cursorBroadcastInterval) {
+    clearInterval(cursorBroadcastInterval);
+    cursorBroadcastInterval = null;
+  }
+  if (cursorPollInterval) {
+    clearInterval(cursorPollInterval);
+    cursorPollInterval = null;
+  }
+  if (uIOhook) {
+    try {
+      uIOhook.stop();
+    } catch (err) {
+      // ignore
+    }
+    uIOhook = null;
   }
 }
 
@@ -112,7 +215,19 @@ function createOverlayWindows() {
     overlayWindow.loadFile('overlay.html');
     overlayWindow.setAlwaysOnTop(true, 'screen-saver');
     overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-    
+
+    // Re-apply current settings and active state whenever an overlay window is
+    // (re)created - e.g. after a display is added/removed or its resolution or
+    // scaling changes - so it never silently reverts to the default ring or off.
+    overlayWindow.webContents.on('did-finish-load', () => {
+      if (overlayWindow.isDestroyed()) return;
+      const settings = loadSettings();
+      overlayWindow.webContents.send('update-ring-settings', settings.ringSettings);
+      overlayWindow.webContents.send('update-click-settings', settings.clickSettings);
+      overlayWindow.webContents.send('set-click-effect', settings.clickEffectEnabled);
+      overlayWindow.webContents.send('set-overlay', overlayState.isActive);
+    });
+
     overlayWindows.push(overlayWindow);
   });
 }
@@ -202,6 +317,10 @@ function createTray() {
 
 // App initialization
 app.whenReady().then(() => {
+  // Seed runtime state from persisted settings before windows come up
+  overlayState.clickEffectEnabled = loadSettings().clickEffectEnabled;
+
+  startInputTracking();   // single global mouse hook for all overlays
   createOverlayWindows(); // Changed: Create overlay for all monitors
   createControlWindow();
   createTray();
@@ -241,6 +360,7 @@ app.on('before-quit', () => {
 // Cleanup on quit
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  stopInputTracking();
 });
 
 // ========== IPC Message Handlers ==========
@@ -292,9 +412,11 @@ ipcMain.on('get-cursor-position', (event) => {
   event.returnValue = point;
 });
 
-// Send overlay status to control window
+// Send overlay status to control window (and remember it so overlay windows
+// recreated after a display change can be restored to the same state)
 ipcMain.on('overlay-status', (event, status) => {
-  if (controlWindow) {
+  overlayState = status;
+  if (controlWindow && !controlWindow.isDestroyed()) {
     controlWindow.webContents.send('overlay-status', status);
   }
 });

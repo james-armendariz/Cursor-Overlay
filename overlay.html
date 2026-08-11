@@ -113,7 +113,6 @@
     
     // Frame timing for smooth animation across different refresh rates
     let lastFrameTime = performance.now();
-    let targetFPS = 60; // Target 60fps worth of movement per second
     
     // Visual settings for click effects
     let clickSettings = {
@@ -144,104 +143,54 @@
     ringX = initialLocal.x;
     ringY = initialLocal.y;
     
-    let uIOhook = null;
-    let usePolling = false;
-    let pollingInterval = null;
-    let hybridInterval = null;
-    
-    // Try to load uiohook-napi for global mouse tracking
-    try {
-      const uiohook = require('uiohook-napi');
-      uIOhook = uiohook.uIOhook;
-      
-      // Track mouse movements - convert global to local coords
-      uIOhook.on('mousemove', (e) => {
-        globalCursorX = e.x;
-        globalCursorY = e.y;
-        const local = globalToLocal(e.x, e.y);
-        cursorX = local.x;
-        cursorY = local.y;
-      });
-      
-      // Track mouse down events - convert global to local coords
-      uIOhook.on('mousedown', (e) => {
-        if (isActive && clickEffectEnabled) {
-          globalCursorX = e.x;
-          globalCursorY = e.y;
-          
-          // Only create click effect if cursor is on this display
-          if (isPointInDisplay(globalCursorX, globalCursorY)) {
-            const local = globalToLocal(e.x, e.y);
-            lastMouseDownTime = Date.now();
-            mouseDownPos = { x: local.x, y: local.y };
-            // e.button: 1 = left, 2 = right, 3 = middle
-            const clickType = e.button === 2 ? 'right' : 'left';
+    // Global cursor and click events are tracked by a single system-wide hook
+    // in the main process and broadcast here already converted to DIP
+    // (device-independent) coordinates. Because they share the same coordinate
+    // space as this window's display bounds, positions stay accurate regardless
+    // of per-monitor DPI scaling or monitor arrangement.
+    ipcRenderer.on('global-mousemove', (event, pos) => {
+      globalCursorX = pos.x;
+      globalCursorY = pos.y;
+      const local = globalToLocal(pos.x, pos.y);
+      cursorX = local.x;
+      cursorY = local.y;
+    });
+
+    // Mouse down - create a click effect if the cursor is on this display
+    ipcRenderer.on('global-mousedown', (event, pos) => {
+      if (isActive && clickEffectEnabled) {
+        globalCursorX = pos.x;
+        globalCursorY = pos.y;
+
+        if (isPointInDisplay(pos.x, pos.y)) {
+          const local = globalToLocal(pos.x, pos.y);
+          lastMouseDownTime = Date.now();
+          mouseDownPos = { x: local.x, y: local.y };
+          // pos.button: 1 = left, 2 = right, 3 = middle
+          const clickType = pos.button === 2 ? 'right' : 'left';
+          createClickEffect(local.x, local.y, clickType);
+        }
+      }
+    });
+
+    // Mouse up - add a second effect only for drags / long presses
+    ipcRenderer.on('global-mouseup', (event, pos) => {
+      if (isActive && clickEffectEnabled) {
+        globalCursorX = pos.x;
+        globalCursorY = pos.y;
+
+        if (isPointInDisplay(pos.x, pos.y)) {
+          const local = globalToLocal(pos.x, pos.y);
+          const timeSinceDown = Date.now() - lastMouseDownTime;
+          const distance = Math.sqrt(Math.pow(local.x - mouseDownPos.x, 2) + Math.pow(local.y - mouseDownPos.y, 2));
+
+          if (timeSinceDown > 150 || distance > 5) {
+            const clickType = pos.button === 2 ? 'right' : 'left';
             createClickEffect(local.x, local.y, clickType);
           }
         }
-      });
-      
-      // Track mouse up events - convert global to local coords
-      uIOhook.on('mouseup', (e) => {
-        if (isActive && clickEffectEnabled) {
-          globalCursorX = e.x;
-          globalCursorY = e.y;
-          
-          // Only create click effect if cursor is on this display
-          if (isPointInDisplay(globalCursorX, globalCursorY)) {
-            const local = globalToLocal(e.x, e.y);
-            const timeSinceDown = Date.now() - lastMouseDownTime;
-            const distance = Math.sqrt(Math.pow(local.x - mouseDownPos.x, 2) + Math.pow(local.y - mouseDownPos.y, 2));
-            
-            // Only create second effect if it was a drag or long press
-            if (timeSinceDown > 150 || distance > 5) {
-              const clickType = e.button === 2 ? 'right' : 'left';
-              createClickEffect(local.x, local.y, clickType);
-            }
-          }
-        }
-      });
-      
-      uIOhook.start();
-      
-    } catch (err) {
-      usePolling = true;
-    }
-    
-    // Fallback: Poll cursor position if uiohook not available
-    // Update BOTH global and local coordinates
-    if (usePolling) {
-      pollingInterval = setInterval(() => {
-        const pos = ipcRenderer.sendSync('get-cursor-position');
-        globalCursorX = pos.x;
-        globalCursorY = pos.y;
-        const local = globalToLocal(pos.x, pos.y);
-        cursorX = local.x;
-        cursorY = local.y;
-      }, 8); // 8ms = ~120fps polling
-      
-    } else {
-      // HYBRID APPROACH: Even with uiohook, poll occasionally to catch missed events
-      // This helps with elevated windows and drag operations
-      // Update BOTH global and local coordinates
-      hybridInterval = setInterval(() => {
-        const pos = ipcRenderer.sendSync('get-cursor-position');
-        const prevGlobalX = globalCursorX;
-        const prevGlobalY = globalCursorY;
-        
-        globalCursorX = pos.x;
-        globalCursorY = pos.y;
-        const local = globalToLocal(pos.x, pos.y);
-        
-        // Only update if position diverged significantly from uiohook position
-        const deltaX = Math.abs(local.x - cursorX);
-        const deltaY = Math.abs(local.y - cursorY);
-        if (deltaX > 5 || deltaY > 5) {
-          cursorX = local.x;
-          cursorY = local.y;
-        }
-      }, 50); // Check every 50ms as safety net
-    }
+      }
+    });
     
     // Main animation loop
     function animate() {
@@ -488,35 +437,6 @@
       // Handle full replacement (from preset loading)
       if (settings.leftClick && settings.rightClick && settings.effectStyle) {
         clickSettings = { ...clickSettings, ...settings };
-      }
-    });
-    
-    // Cleanup on window close
-    window.addEventListener('beforeunload', () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-        pollingInterval = null;
-      }
-      if (hybridInterval) {
-        clearInterval(hybridInterval);
-        hybridInterval = null;
-      }
-      if (uIOhook) {
-        uIOhook.stop();
-        uIOhook = null;
-      }
-    });
-    
-    // Cleanup on process exit (fallback)
-    process.on('exit', () => {
-      if (pollingInterval) {
-        clearInterval(pollingInterval);
-      }
-      if (hybridInterval) {
-        clearInterval(hybridInterval);
-      }
-      if (uIOhook) {
-        uIOhook.stop();
       }
     });
     

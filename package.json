@@ -10,7 +10,7 @@
     "start": "electron .",
     "build": "electron-builder --win --x64",
     "build:store": "electron-builder --win --x64 --config.win.target=appx",
-    "build:msix": "electron-builder --win --x64 --config.win.target=msix"
+    "build:msix": "electron-builder --win --x64 --config.win.target=appx"
   },
   "dependencies": {
     "uiohook-napi": "^1.5.4"
@@ -31,29 +31,21 @@
       "icon": "icon.ico",
       "target": [
         {
-          "target": "msix",
+          "target": "appx",
           "arch": ["x64"]
         }
       ],
       "signingHashAlgorithms": ["sha256"],
       "requestedExecutionLevel": "asInvoker"
     },
-    "msix": {
-      "identityName": "James Armendariz.CursorOverlay",
-      "publisher": "CN=James Armendariz",
+    "appx": {
+      "identityName": "JamesArmendariz.CursorOverlay",
+      "publisher": "CN=FF7EB393-C396-4EAF-87F0-1ED99E677F17",
       "publisherDisplayName": "James Armendariz",
       "applicationId": "CursorOverlay",
       "displayName": "Cursor Overlay",
-      "description": "Global cursor overlay with smooth animations",
       "backgroundColor": "#ffffff",
-      "startMenu": {
-        "Name": "Cursor Overlay",
-        "Icon": "icon.ico"
-      },
-      "capabilities": [
-        "internetClient",
-        "privateNetworkClientServer"
-      ],
+      "showNameOnTiles": true,
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "nsis": {
